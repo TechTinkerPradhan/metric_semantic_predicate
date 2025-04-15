@@ -1,0 +1,10 @@
+numpy
+pandas
+plotly
+pyro-ppl
+torch
+ollama
+matplotlib
+seaborn
+scipy
+scikit-learn
