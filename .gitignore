@@ -1,0 +1,35 @@
+# Python bytecode and cache
+__pycache__/
+*.py[cod]
+*.pyo
+
+# Ignore test directory 
+metric_semantic_predicate/tests/
+
+# Ignore generated datasets
+metric_semantic_predicate/data/*.csv
+metric_semantic_predicate/data/*.npz
+metric_semantic_predicate/data/*.npy
+metric_semantic_predicate/data/*.json
+
+# Jupyter notebook checkpoints (if any)
+.ipynb_checkpoints/
+
+# VS Code specific
+.vscode/
+
+# OS metadata files
+.DS_Store
+Thumbs.db
+
+# Logs and temporary files
+*.log
+*.tmp
+
+# Environment files
+.env
+*.env
+*.venv
+venv/
+ENV/
+env/

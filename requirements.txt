@@ -4,7 +4,7 @@ plotly
 pyro-ppl
 torch
 ollama
-matplotlib
 seaborn
+matplotlib
 scipy
 scikit-learn
