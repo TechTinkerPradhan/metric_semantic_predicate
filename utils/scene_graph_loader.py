@@ -75,3 +75,34 @@ def get_scene_objects_for_room(scene_graph, room_id):
             scene_objects.append(obj)
 
     return scene_objects, ((rx, ry, rz), (rwidth, rdepth, rheight))
+
+def get_object_sizes(scene_graph):
+    """
+    Returns a dictionary mapping each object's class name (e.g. "chair", "microwave")
+    to its (bounding_box_size_x, bounding_box_size_y, bounding_box_size_z).
+
+    Example output:
+      {
+        "chair": (0.46, 0.54, 0.92),
+        "microwave": (0.17, 0.15, 0.23),
+        ...
+      }
+
+    If multiple objects share the same class name, this overwrites by the last one encountered.
+    Adjust as needed if you have duplicates or want a list of all sizes per class.
+    """
+    obj_sizes = {}
+
+    for obj_id, obj_data in scene_graph["object"].items():
+        name = obj_data["class_"]  # e.g. "chair", "microwave", etc.
+        
+        # Assuming your scene graph dictionary keys for bounding box size are exactly:
+        # "bounding box size X", "bounding box size Y", and "bounding box size Z"
+        # If the keys differ, update accordingly.
+        size_x = obj_data["bounding box size X"]
+        size_y = obj_data["bounding box size Y"]
+        size_z = obj_data["bounding box size Z"]
+        
+        obj_sizes[name] = (size_x, size_y, size_z)
+
+    return obj_sizes
