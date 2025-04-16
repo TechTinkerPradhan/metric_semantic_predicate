@@ -1,0 +1,10 @@
+experiment:
+  name: CombinedPDF_BNN_Exp
+
+training:
+  dataset: metric_semantic_predicate/data/3DSceneGraph_Beechwood_dataset.csv
+  model_name: combined_bnn_before_update
+  num_steps: 3000
+  hidden_dim: 32
+  lr: 0.01
+  save_model: true

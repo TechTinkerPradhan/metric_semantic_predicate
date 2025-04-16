@@ -8,3 +8,5 @@ seaborn
 matplotlib
 scipy
 scikit-learn
+mlflow
+tensorboard
