@@ -2,6 +2,7 @@ import numpy as np
 import seaborn as sns
 import matplotlib.pyplot as plt
 from scipy.stats import wasserstein_distance
+import torch
 
 def evaluate_with_distributions(Y_true, mean_before, mean_after, label_prefix="BNN"):
     """
@@ -26,9 +27,9 @@ def evaluate_with_distributions(Y_true, mean_before, mean_after, label_prefix="B
 
     # KDE plot
     plt.figure(figsize=(8, 6))
-    sns.kdeplot(Y_true_np, label="Analytical P_combined", color="black", linestyle="--")
-    sns.kdeplot(mean_before_np, label=f"{label_prefix} Before Update", color="blue")
-    sns.kdeplot(mean_after_np, label=f"{label_prefix} After Update", color="green")
+    sns.kdeplot(Y_true_np, label="Analytical P_combined", color="black", lw=2)
+    sns.kdeplot(mean_before_np, label=f"{label_prefix} Before Update", color="blue", lw=2)
+    sns.kdeplot(mean_after_np, label=f"{label_prefix} After Update", color="green", lw=2)
     plt.xlabel("P_combined Value")
     plt.ylabel("Density")
     plt.title("KDE of P_combined Distributions")
@@ -46,9 +47,14 @@ def evaluate_with_distributions(Y_true, mean_before, mean_after, label_prefix="B
     plt.tight_layout()
     plt.show()
 
+
 def _to_numpy(x):
-    if hasattr(x, "detach"):
-        x = x.detach()
-    if hasattr(x, "cpu"):
-        x = x.cpu()
-    return x.numpy().flatten()
+    """
+    Helper to convert Torch or NumPy input to flattened NumPy array.
+    """
+    if isinstance(x, torch.Tensor):
+        return x.detach().cpu().numpy().flatten()
+    elif isinstance(x, np.ndarray):
+        return x.flatten()
+    else:
+        raise TypeError(f"Unsupported input type: {type(x)}")

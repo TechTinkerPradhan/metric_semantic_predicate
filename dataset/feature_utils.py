@@ -2,18 +2,13 @@
 
 import pandas as pd
 from sklearn.model_selection import train_test_split
-from sklearn.preprocessing import LabelEncoder
+from sklearn.preprocessing import LabelEncoder, StandardScaler
 
 
-def prepare_dataset(df, feature_cols, target_cols):
+def prepare_dataset(df, feature_cols, target_cols, scaler=None, fit_scaler=True):
     """
-    Encodes 'predicate' and 'semantic' as integers, extracts feature matrix and targets.
-
-    Returns:
-        X: Feature matrix (N x D)
-        Y: Target values (N x 1)
-        df: Encoded DataFrame
-        feature_cols: List of used feature columns
+    Scales input features and label-encodes categorical columns.
+    Reuses scaler for val/test splits.
     """
     label_enc_pred = LabelEncoder()
     df["encoded_predicate"] = label_enc_pred.fit_transform(df["predicate"])
@@ -24,7 +19,13 @@ def prepare_dataset(df, feature_cols, target_cols):
     X = df[feature_cols].values
     Y = df[target_cols].values
 
-    return X, Y, df, feature_cols
+    if scaler is None and fit_scaler:
+        scaler = StandardScaler()
+        X = scaler.fit_transform(X)
+    elif scaler is not None:
+        X = scaler.transform(X)
+
+    return X, Y, df, feature_cols, scaler
 
 
 def split_dataset(df):

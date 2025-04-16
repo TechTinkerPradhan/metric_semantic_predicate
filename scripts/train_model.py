@@ -44,11 +44,21 @@ def main():
     df = pd.read_csv(dataset_path)
     feature_cols, target_cols = get_feature_and_target_cols(config_path=args.feature_config, task=args.task)
 
-    X, Y, df_encoded, _ = prepare_dataset(df, feature_cols, target_cols)
-    df_train, _, _ = split_dataset(df_encoded)
-    X_train, Y_train, _, _ = prepare_dataset(df_train, feature_cols, target_cols)
+    X, Y, df_encoded, _, scaler = prepare_dataset(df, feature_cols, target_cols, scaler=None, fit_scaler=True)
 
-    X_t, Y_t = prepare_tensor_data(X_train, Y_train, device)
+    df_train, df_val, df_test = split_dataset(df_encoded)
+
+    X_train, Y_train, _, _, _ = prepare_dataset(df_train, feature_cols, target_cols, scaler=scaler, fit_scaler=False)
+    X_val, Y_val, _, _, _ = prepare_dataset(df_val, feature_cols, target_cols, scaler=scaler, fit_scaler=False)
+    X_test, Y_test, _, _, _ = prepare_dataset(df_test, feature_cols, target_cols, scaler=scaler, fit_scaler=False)
+
+
+    X_t = torch.tensor(X_train, dtype=torch.float32).to(device)
+    Y_t = torch.tensor(Y_train, dtype=torch.float32).to(device)
+
+    # ✅ Add this to enable validation loss
+    X_val_t = torch.tensor(X_val, dtype=torch.float32).to(device)
+    Y_val_t = torch.tensor(Y_val, dtype=torch.float32).to(device)
 
     # TensorBoard logging
     tb_logdir = f"runs/{model_name}_{datetime.datetime.now().strftime('%Y%m%d-%H%M%S')}"
@@ -75,7 +85,9 @@ def main():
             lr=lr,
             device=device,
             model_name=model_name,
-            writer=writer  # enable tensorboard logging from inside
+            writer=writer,
+            X_val=X_val_t,
+            Y_val=Y_val_t
         )
 
         writer.close()

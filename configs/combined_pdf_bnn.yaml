@@ -1,10 +1,24 @@
 experiment:
   name: CombinedPDF_BNN_Exp
 
+features:
+  - metric
+  - encoded_predicate
+  - encoded_semantic
+  - width
+  - height
+  - depth
+
+targets:
+  - P_combined
+
 training:
   dataset: metric_semantic_predicate/data/3DSceneGraph_Beechwood_dataset.csv
   model_name: combined_bnn_before_update
-  num_steps: 3000
+  num_steps: 10000
   hidden_dim: 32
-  lr: 0.01
+  lr: 0.0005
   save_model: true
+
+update:
+  human_dataset: metric_semantic_predicate/data/3DSceneGraph_Beechwood_dataset_human.csv
