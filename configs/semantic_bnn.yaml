@@ -1,0 +1,19 @@
+training:
+  dataset: metric_semantic_predicate/data/3DSceneGraph_Beechwood_dataset.csv
+  model_name: sem_bnn_before_update
+  num_steps: 3000
+  hidden_dim: 32
+  lr: 0.001
+  save_model: true
+
+update:
+  human_dataset: metric_semantic_predicate/data/3DSceneGraph_Beechwood_dataset_human.csv
+  model_before: sem_bnn_before_update
+  model_after: sem_bnn_after_update
+
+data:
+  feature_cols: ["encoded_semantic", "width", "height", "depth"]
+  target_cols: ["mu_x", "mu_y", "sigma_s"]
+
+experiment:
+  name: SemBNN_Experiment

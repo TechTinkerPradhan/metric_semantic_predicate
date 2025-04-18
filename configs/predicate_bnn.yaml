@@ -1,0 +1,18 @@
+experiment:
+  name: Predicate_BNN_Exp
+
+paths:
+  original_dataset: metric_semantic_predicate/data/3DSceneGraph_Beechwood_dataset.csv
+  human_dataset: metric_semantic_predicate/data/3DSceneGraph_Beechwood_dataset_human.csv
+
+training:
+  dataset: metric_semantic_predicate/data/3DSceneGraph_Beechwood_dataset.csv
+  model_name: bnn_predicate_model
+  hidden_dim: 32
+  num_steps: 3000
+  lr: 0.001
+  save_model: true
+
+update:
+  pretrained_model: bnn_predicate_model
+  updated_model: bnn_predicate_model_updated

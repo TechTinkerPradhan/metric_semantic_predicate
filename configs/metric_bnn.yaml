@@ -1,0 +1,19 @@
+experiment:
+  name: MetricBNN_Experiment
+
+training:
+  dataset: metric_semantic_predicate/data/3DSceneGraph_Beechwood_dataset.csv
+  model_name: bnn_metric_before_update
+  hidden_dim: 32
+  num_steps: 3000
+  lr: 0.001
+  save_model: true
+
+update:
+  human_dataset: metric_semantic_predicate/data/3DSceneGraph_Beechwood_dataset_human.csv
+  model_before: bnn_metric_before_update
+  model_after: bnn_metric_after_update
+
+data:
+  feature_cols: ["metric", "width", "height", "depth"]
+  target_cols: ["d0", "sigma_m"]
