@@ -8,37 +8,50 @@ from torch.utils.tensorboard import SummaryWriter
 import datetime
 
 class BayesianNNPred(torch.nn.Module):
-    def __init__(self, input_dim, hidden_dim, output_dim=2):
+    def __init__(self, input_dim, hidden_dim, output_dim=3):  # 3 outputs: theta0, phi0, kappa
         super().__init__()
         self.input_dim = input_dim
         self.hidden_dim = hidden_dim
         self.output_dim = output_dim
 
     def forward(self, x, w1, b1, w2, b2):
+        w1, b1, w2, b2 = w1.to(x.device), b1.to(x.device), w2.to(x.device), b2.to(x.device)
         hidden = torch.relu(torch.matmul(x, w1) + b1)
         out = torch.matmul(hidden, w2) + b2
         return out
 
 def model_bnn_pred(x, y, net):
-    w1 = pyro.sample("pred_w1", dist.Normal(torch.zeros(net.input_dim, net.hidden_dim), torch.ones(net.input_dim, net.hidden_dim)).to_event(2))
-    b1 = pyro.sample("pred_b1", dist.Normal(torch.zeros(net.hidden_dim), torch.ones(net.hidden_dim)).to_event(1))
-    w2 = pyro.sample("pred_w2", dist.Normal(torch.zeros(net.hidden_dim, net.output_dim), torch.ones(net.hidden_dim, net.output_dim)).to_event(2))
-    b2 = pyro.sample("pred_b2", dist.Normal(torch.zeros(net.output_dim), torch.ones(net.output_dim)).to_event(1))
-    sigma = pyro.sample("pred_sigma", dist.Exponential(torch.ones(net.output_dim)).to_event(1))
+    device = x.device
+    w1 = pyro.sample("pred_w1", dist.Normal(torch.zeros(net.input_dim, net.hidden_dim, device=device),
+                                            torch.ones(net.input_dim, net.hidden_dim, device=device)).to_event(2))
+    b1 = pyro.sample("pred_b1", dist.Normal(torch.zeros(net.hidden_dim, device=device),
+                                            torch.ones(net.hidden_dim, device=device)).to_event(1))
+    w2 = pyro.sample("pred_w2", dist.Normal(torch.zeros(net.hidden_dim, net.output_dim, device=device),
+                                            torch.ones(net.hidden_dim, net.output_dim, device=device)).to_event(2))
+    b2 = pyro.sample("pred_b2", dist.Normal(torch.zeros(net.output_dim, device=device),
+                                            torch.ones(net.output_dim, device=device)).to_event(1))
+    sigma = pyro.sample("pred_sigma", dist.Exponential(torch.ones(net.output_dim, device=device)).to_event(1))
+
     pred = net.forward(x, w1, b1, w2, b2)
     with pyro.plate("data_pred", x.shape[0]):
         pyro.sample("pred_obs", dist.Normal(pred, sigma).to_event(1), obs=y)
 
 def guide_bnn_pred(x, y, net):
-    w1_loc = pyro.param("pred_w1_loc", torch.zeros(net.input_dim, net.hidden_dim))
-    w1_scale = pyro.param("pred_w1_scale", torch.ones(net.input_dim, net.hidden_dim), constraint=dist.constraints.positive)
-    b1_loc = pyro.param("pred_b1_loc", torch.zeros(net.hidden_dim))
-    b1_scale = pyro.param("pred_b1_scale", torch.ones(net.hidden_dim), constraint=dist.constraints.positive)
-    w2_loc = pyro.param("pred_w2_loc", torch.zeros(net.hidden_dim, net.output_dim))
-    w2_scale = pyro.param("pred_w2_scale", torch.ones(net.hidden_dim, net.output_dim), constraint=dist.constraints.positive)
-    b2_loc = pyro.param("pred_b2_loc", torch.zeros(net.output_dim))
-    b2_scale = pyro.param("pred_b2_scale", torch.ones(net.output_dim), constraint=dist.constraints.positive)
-    sigma_loc = pyro.param("pred_sigma_loc", torch.ones(net.output_dim), constraint=dist.constraints.positive)
+    device = x.device
+    w1_loc = pyro.param("pred_w1_loc", torch.zeros(net.input_dim, net.hidden_dim, device=device))
+    w1_scale = pyro.param("pred_w1_scale", torch.ones(net.input_dim, net.hidden_dim, device=device),
+                          constraint=dist.constraints.positive)
+    b1_loc = pyro.param("pred_b1_loc", torch.zeros(net.hidden_dim, device=device))
+    b1_scale = pyro.param("pred_b1_scale", torch.ones(net.hidden_dim, device=device),
+                          constraint=dist.constraints.positive)
+    w2_loc = pyro.param("pred_w2_loc", torch.zeros(net.hidden_dim, net.output_dim, device=device))
+    w2_scale = pyro.param("pred_w2_scale", torch.ones(net.hidden_dim, net.output_dim, device=device),
+                          constraint=dist.constraints.positive)
+    b2_loc = pyro.param("pred_b2_loc", torch.zeros(net.output_dim, device=device))
+    b2_scale = pyro.param("pred_b2_scale", torch.ones(net.output_dim, device=device),
+                          constraint=dist.constraints.positive)
+    sigma_loc = pyro.param("pred_sigma_loc", torch.ones(net.output_dim, device=device),
+                           constraint=dist.constraints.positive)
 
     pyro.sample("pred_w1", dist.Normal(w1_loc, w1_scale).to_event(2))
     pyro.sample("pred_b1", dist.Normal(b1_loc, b1_scale).to_event(1))
@@ -47,10 +60,12 @@ def guide_bnn_pred(x, y, net):
     pyro.sample("pred_sigma", dist.Exponential(sigma_loc).to_event(1))
 
 def bnn_predict_predicate(X, net, n_samples=50):
+    device = X.device if isinstance(X, torch.Tensor) else torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
     if not isinstance(X, torch.Tensor):
-        X_t = torch.tensor(X, dtype=torch.float32)
+        X_t = torch.tensor(X, dtype=torch.float32).to(device)
     else:
-        X_t = X
+        X_t = X.to(device)
 
     preds = []
     for _ in range(n_samples):
@@ -65,11 +80,19 @@ def bnn_predict_predicate(X, net, n_samples=50):
     preds = np.stack(preds, axis=0)
     return preds.mean(axis=0), preds.std(axis=0)
 
-def train_bnn_pred_model(X, Y, input_dim, output_dim=2, hidden_dim=32, num_steps=2000, lr=0.01, writer=None, X_val=None, Y_val=None):
+def train_bnn_pred_model(X, Y, input_dim, output_dim=3, hidden_dim=32, num_steps=2000, lr=0.01, writer=None, X_val=None, Y_val=None):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     net = BayesianNNPred(input_dim=input_dim, hidden_dim=hidden_dim, output_dim=output_dim).to(device)
-    X_t = torch.tensor(X, dtype=torch.float32).to(device)
-    Y_t = torch.tensor(Y, dtype=torch.float32).to(device)
+
+    if not isinstance(X, torch.Tensor):
+        X_t = torch.tensor(X, dtype=torch.float32).to(device)
+    else:
+        X_t = X.to(device)
+
+    if not isinstance(Y, torch.Tensor):
+        Y_t = torch.tensor(Y, dtype=torch.float32).to(device)
+    else:
+        Y_t = Y.to(device)
 
     optim = Adam({"lr": lr})
     svi = SVI(lambda x, y: model_bnn_pred(x, y, net),
@@ -88,9 +111,8 @@ def train_bnn_pred_model(X, Y, input_dim, output_dim=2, hidden_dim=32, num_steps
             writer.add_scalar("Loss/train", loss, step)
 
         if step % 100 == 0 and X_val is not None and Y_val is not None:
-            with torch.no_grad():
-                val_loss = svi.evaluate_loss(X_val.to(device), Y_val.to(device))
-                writer.add_scalar("Loss/val", val_loss, step)
+            val_loss = svi.evaluate_loss(X_val.to(device), Y_val.to(device))
+            writer.add_scalar("Loss/val", val_loss, step)
 
         if step % 200 == 0:
             print(f"[PREDICATE BNN] Step {step}, Loss={loss:.4f}")

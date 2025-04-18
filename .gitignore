@@ -5,6 +5,7 @@ __pycache__/
 
 # Ignore test directory 
 metric_semantic_predicate/tests/
+metric_semantic_predicate/random/
 
 # Ignore generated datasets
 metric_semantic_predicate/data/*.csv

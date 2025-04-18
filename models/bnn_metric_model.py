@@ -22,31 +22,64 @@ class BayesianNN_metric(torch.nn.Module):
 
 
 def model_bnn_metric(x, y, net):
-    w1 = pyro.sample("metric_w1", dist.Normal(torch.zeros(net.input_dim, net.hidden_dim), 0.1 * torch.ones(net.input_dim, net.hidden_dim)).to_event(2))
-    b1 = pyro.sample("metric_b1", dist.Normal(torch.zeros(net.hidden_dim), 0.1 * torch.ones(net.hidden_dim)).to_event(1))
-    w2 = pyro.sample("metric_w2", dist.Normal(torch.zeros(net.hidden_dim, net.output_dim), 0.1 * torch.ones(net.hidden_dim, net.output_dim)).to_event(2))
-    b2 = pyro.sample("metric_b2", dist.Normal(torch.zeros(net.output_dim), 0.1 * torch.ones(net.output_dim)).to_event(1))
-    sigma = pyro.sample("metric_sigma", dist.Exponential(0.1 * torch.ones(net.output_dim)).to_event(1))
+    device = x.device
+
+    w1 = pyro.sample("metric_w1", dist.Normal(
+        torch.zeros(net.input_dim, net.hidden_dim, device=device),
+        0.1 * torch.ones(net.input_dim, net.hidden_dim, device=device)
+    ).to_event(2))
+
+    b1 = pyro.sample("metric_b1", dist.Normal(
+        torch.zeros(net.hidden_dim, device=device),
+        0.1 * torch.ones(net.hidden_dim, device=device)
+    ).to_event(1))
+
+    w2 = pyro.sample("metric_w2", dist.Normal(
+        torch.zeros(net.hidden_dim, net.output_dim, device=device),
+        0.1 * torch.ones(net.hidden_dim, net.output_dim, device=device)
+    ).to_event(2))
+
+    b2 = pyro.sample("metric_b2", dist.Normal(
+        torch.zeros(net.output_dim, device=device),
+        0.1 * torch.ones(net.output_dim, device=device)
+    ).to_event(1))
+
+    sigma = pyro.sample("metric_sigma", dist.Exponential(
+        0.1 * torch.ones(net.output_dim, device=device)
+    ).to_event(1))
+
     pred = net.forward(x, w1, b1, w2, b2)
+
     with pyro.plate("data", x.shape[0]):
         pyro.sample("obs", dist.Normal(pred, sigma).to_event(1), obs=y)
 
 
 def guide_bnn_metric(x, y, net):
-    w1_scale = torch.clamp(torch.nn.functional.softplus(
-        pyro.param("metric_w1_scale", 0.1 * torch.ones(net.input_dim, net.hidden_dim))), min=1e-3)
-    b1_scale = torch.clamp(torch.nn.functional.softplus(
-        pyro.param("metric_b1_scale", 0.1 * torch.ones(net.hidden_dim))), min=1e-3)
-    w2_scale = torch.clamp(torch.nn.functional.softplus(
-        pyro.param("metric_w2_scale", 0.1 * torch.ones(net.hidden_dim, net.output_dim))), min=1e-3)
-    b2_scale = torch.clamp(torch.nn.functional.softplus(
-        pyro.param("metric_b2_scale", 0.1 * torch.ones(net.output_dim))), min=1e-3)
-    sigma_loc = pyro.param("metric_sigma_loc", 0.1 * torch.ones(net.output_dim), constraint=dist.constraints.positive)
+    device = x.device
 
-    pyro.sample("metric_w1", dist.Normal(torch.zeros_like(w1_scale), w1_scale).to_event(2))
-    pyro.sample("metric_b1", dist.Normal(torch.zeros_like(b1_scale), b1_scale).to_event(1))
-    pyro.sample("metric_w2", dist.Normal(torch.zeros_like(w2_scale), w2_scale).to_event(2))
-    pyro.sample("metric_b2", dist.Normal(torch.zeros_like(b2_scale), b2_scale).to_event(1))
+    w1_loc = pyro.param("metric_w1_loc", 0.1 * torch.randn(net.input_dim, net.hidden_dim, device=device))
+    w1_scale = pyro.param("metric_w1_scale", 0.1 * torch.ones(net.input_dim, net.hidden_dim, device=device),
+                          constraint=dist.constraints.positive)
+
+    b1_loc = pyro.param("metric_b1_loc", 0.1 * torch.randn(net.hidden_dim, device=device))
+    b1_scale = pyro.param("metric_b1_scale", 0.1 * torch.ones(net.hidden_dim, device=device),
+                          constraint=dist.constraints.positive)
+
+    w2_loc = pyro.param("metric_w2_loc", 0.1 * torch.randn(net.hidden_dim, net.output_dim, device=device))
+    w2_scale = pyro.param("metric_w2_scale", 0.1 * torch.ones(net.hidden_dim, net.output_dim, device=device),
+                          constraint=dist.constraints.positive)
+
+    b2_loc = pyro.param("metric_b2_loc", 0.1 * torch.randn(net.output_dim, device=device))
+    b2_scale = pyro.param("metric_b2_scale", 0.1 * torch.ones(net.output_dim, device=device),
+                          constraint=dist.constraints.positive)
+
+    sigma_loc = pyro.param("metric_sigma_loc", 0.1 * torch.ones(net.output_dim, device=device),
+                           constraint=dist.constraints.positive)
+
+    pyro.sample("metric_w1", dist.Normal(w1_loc, w1_scale).to_event(2))
+    pyro.sample("metric_b1", dist.Normal(b1_loc, b1_scale).to_event(1))
+    pyro.sample("metric_w2", dist.Normal(w2_loc, w2_scale).to_event(2))
+    pyro.sample("metric_b2", dist.Normal(b2_loc, b2_scale).to_event(1))
     pyro.sample("metric_sigma", dist.Exponential(sigma_loc).to_event(1))
 
 
@@ -83,14 +116,20 @@ def bnn_predict_metric(X, net, n_samples=100):
     net.eval()
     samples = []
 
+    if not isinstance(X, torch.Tensor):
+        X = torch.tensor(X, dtype=torch.float32)
+
     for _ in range(n_samples):
-        w1 = pyro.sample("metric_w1", dist.Normal(pyro.param("metric_w1_scale"), 0.1).to_event(2))
-        b1 = pyro.sample("metric_b1", dist.Normal(pyro.param("metric_b1_scale"), 0.1).to_event(1))
-        w2 = pyro.sample("metric_w2", dist.Normal(pyro.param("metric_w2_scale"), 0.1).to_event(2))
-        b2 = pyro.sample("metric_b2", dist.Normal(pyro.param("metric_b2_scale"), 0.1).to_event(1))
+        w1 = dist.Normal(pyro.param("metric_w1_loc"), pyro.param("metric_w1_scale")).sample()
+        b1 = dist.Normal(pyro.param("metric_b1_loc"), pyro.param("metric_b1_scale")).sample()
+        w2 = dist.Normal(pyro.param("metric_w2_loc"), pyro.param("metric_w2_scale")).sample()
+        b2 = dist.Normal(pyro.param("metric_b2_loc"), pyro.param("metric_b2_scale")).sample()
+
         with torch.no_grad():
-            preds = net.forward(X.to(w1.device), w1, b1, w2, b2)
-            samples.append(preds.cpu().numpy())
+            pred = net.forward(X.to(w1.device), w1, b1, w2, b2)
+            samples.append(pred.cpu().numpy())
 
     samples = np.stack(samples)
     return samples.mean(axis=0), samples.std(axis=0)
+
+

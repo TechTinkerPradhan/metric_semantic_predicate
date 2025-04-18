@@ -13,7 +13,7 @@ update:
 
 data:
   feature_cols: ["encoded_semantic", "width", "height", "depth"]
-  target_cols: ["mu_x", "mu_y", "sigma_s"]
+  target_cols: ["mu_x", "mu_y", "mu_z","sigma_s"]
 
 experiment:
   name: SemBNN_Experiment

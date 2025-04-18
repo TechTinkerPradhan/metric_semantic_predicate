@@ -7,12 +7,16 @@ paths:
 
 training:
   dataset: metric_semantic_predicate/data/3DSceneGraph_Beechwood_dataset.csv
-  model_name: bnn_predicate_model
+  model_name: predicate_bnn_before_update
   hidden_dim: 32
   num_steps: 3000
   lr: 0.001
   save_model: true
 
 update:
-  pretrained_model: bnn_predicate_model
-  updated_model: bnn_predicate_model_updated
+  pretrained_model: predicate_bnn_before_update
+  updated_model: predicate_bnn_after_update
+
+data:
+  feature_cols: ["encoded_predicate", "width", "height", "depth"]
+  target_cols: ["theta0", "phi0", "kappa"]

@@ -22,26 +22,38 @@ class BayesianNNSem(torch.nn.Module):
         return torch.matmul(hidden, w2) + b2
 
 def model_bnn_sem(x, y, net):
-    w1 = pyro.sample("sem_w1", dist.Normal(torch.zeros(net.input_dim, net.hidden_dim), torch.ones(net.input_dim, net.hidden_dim)).to_event(2))
-    b1 = pyro.sample("sem_b1", dist.Normal(torch.zeros(net.hidden_dim), torch.ones(net.hidden_dim)).to_event(1))
-    w2 = pyro.sample("sem_w2", dist.Normal(torch.zeros(net.hidden_dim, net.output_dim), torch.ones(net.hidden_dim, net.output_dim)).to_event(2))
-    b2 = pyro.sample("sem_b2", dist.Normal(torch.zeros(net.output_dim), torch.ones(net.output_dim)).to_event(1))
-    sigma = pyro.sample("sem_sigma", dist.Exponential(torch.ones(net.output_dim)).to_event(1))
+    device = x.device
+    w1 = pyro.sample("sem_w1", dist.Normal(torch.zeros(net.input_dim, net.hidden_dim, device=device), 0.1 * torch.ones(net.input_dim, net.hidden_dim, device=device)).to_event(2))
+    b1 = pyro.sample("sem_b1", dist.Normal(torch.zeros(net.hidden_dim, device=device), 0.1 * torch.ones(net.hidden_dim, device=device)).to_event(1))
+    w2 = pyro.sample("sem_w2", dist.Normal(torch.zeros(net.hidden_dim, net.output_dim, device=device), 0.1 * torch.ones(net.hidden_dim, net.output_dim, device=device)).to_event(2))
+    b2 = pyro.sample("sem_b2", dist.Normal(torch.zeros(net.output_dim, device=device), 0.1 * torch.ones(net.output_dim, device=device)).to_event(1))
+    sigma = pyro.sample("sem_sigma", dist.Exponential(0.1 * torch.ones(net.output_dim, device=device)).to_event(1))
 
-    pred = net(x, w1, b1, w2, b2)
-    with pyro.plate("data_sem", x.shape[0]):
-        pyro.sample("sem_obs", dist.Normal(pred, sigma).to_event(1), obs=y)
+    pred = net.forward(x, w1, b1, w2, b2)
+
+    # 🚨 Make sure y is also on same device
+    y = y.to(device)
+
+    with pyro.plate("data", x.shape[0]):
+        pyro.sample("obs", dist.Normal(pred, sigma).to_event(1), obs=y)
+
 
 def guide_bnn_sem(x, y, net):
-    w1_loc = pyro.param("sem_w1_loc", torch.zeros(net.input_dim, net.hidden_dim))
-    w1_scale = pyro.param("sem_w1_scale", torch.ones(net.input_dim, net.hidden_dim), constraint=dist.constraints.positive)
-    b1_loc = pyro.param("sem_b1_loc", torch.zeros(net.hidden_dim))
-    b1_scale = pyro.param("sem_b1_scale", torch.ones(net.hidden_dim), constraint=dist.constraints.positive)
-    w2_loc = pyro.param("sem_w2_loc", torch.zeros(net.hidden_dim, net.output_dim))
-    w2_scale = pyro.param("sem_w2_scale", torch.ones(net.hidden_dim, net.output_dim), constraint=dist.constraints.positive)
-    b2_loc = pyro.param("sem_b2_loc", torch.zeros(net.output_dim))
-    b2_scale = pyro.param("sem_b2_scale", torch.ones(net.output_dim), constraint=dist.constraints.positive)
-    sigma_loc = pyro.param("sem_sigma_loc", torch.ones(net.output_dim), constraint=dist.constraints.positive)
+    device = x.device
+
+    w1_loc = pyro.param("sem_w1_loc", 0.1 * torch.randn(net.input_dim, net.hidden_dim, device=device))
+    w1_scale = pyro.param("sem_w1_scale", 0.1 * torch.ones(net.input_dim, net.hidden_dim, device=device), constraint=dist.constraints.positive)
+
+    b1_loc = pyro.param("sem_b1_loc", 0.1 * torch.randn(net.hidden_dim, device=device))
+    b1_scale = pyro.param("sem_b1_scale", 0.1 * torch.ones(net.hidden_dim, device=device), constraint=dist.constraints.positive)
+
+    w2_loc = pyro.param("sem_w2_loc", 0.1 * torch.randn(net.hidden_dim, net.output_dim, device=device))
+    w2_scale = pyro.param("sem_w2_scale", 0.1 * torch.ones(net.hidden_dim, net.output_dim, device=device), constraint=dist.constraints.positive)
+
+    b2_loc = pyro.param("sem_b2_loc", 0.1 * torch.randn(net.output_dim, device=device))
+    b2_scale = pyro.param("sem_b2_scale", 0.1 * torch.ones(net.output_dim, device=device), constraint=dist.constraints.positive)
+
+    sigma_loc = pyro.param("sem_sigma_loc", 0.1 * torch.ones(net.output_dim, device=device), constraint=dist.constraints.positive)
 
     pyro.sample("sem_w1", dist.Normal(w1_loc, w1_scale).to_event(2))
     pyro.sample("sem_b1", dist.Normal(b1_loc, b1_scale).to_event(1))
@@ -49,11 +61,13 @@ def guide_bnn_sem(x, y, net):
     pyro.sample("sem_b2", dist.Normal(b2_loc, b2_scale).to_event(1))
     pyro.sample("sem_sigma", dist.Exponential(sigma_loc).to_event(1))
 
+
 def train_bnn_sem_model(X, Y, input_dim, output_dim, hidden_dim=32, num_steps=2000, lr=0.01, writer=None, X_val=None, Y_val=None):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     net = BayesianNNSem(input_dim=input_dim, hidden_dim=hidden_dim, output_dim=output_dim).to(device)
-    X_t = torch.tensor(X, dtype=torch.float32).to(device)
-    Y_t = torch.tensor(Y, dtype=torch.float32).to(device)
+    X_t = X.clone().detach().float().to(device)
+    Y_t = Y.clone().detach().float().to(device)
+
 
     optim = Adam({"lr": lr})
     svi = SVI(

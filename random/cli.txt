@@ -1,0 +1,34 @@
+Bnn Metric training:
+ python3 -m metric_semantic_predicate.scripts.train_bnn_metric_model \
+  --config metric_semantic_predicate/configs/metric_bnn.yaml \
+  --task metric
+
+Bnn Metric update: 
+python3 -m metric_semantic_predicate.scripts.update_bnn_metric_model_with_human \
+  --config metric_semantic_predicate/configs/metric_bnn.yaml \
+  --task metric
+
+Compare_combined_models: python3 -m metric_semantic_predicate.scripts.compare_combined_models
+
+Bnn Semantic training:
+python3 -m metric_semantic_predicate.scripts.train_bnn_semantic_model \
+  --config metric_semantic_predicate/configs/semantic_bnn.yaml \
+  --task semantic
+
+Bnn Semantic Update:
+python3 -m metric_semantic_predicate.scripts.update_bnn_semantic_model_with_human \
+  --config metric_semantic_predicate/configs/semantic_bnn.yaml \
+  --task semantic
+
+Bnn Predicate training:
+python3 -m metric_semantic_predicate.scripts.train_bnn_predicate_model \
+  --config metric_semantic_predicate/configs/predicate_bnn.yaml \
+  --task predicate
+
+Bnn Predicate Update:
+python3 -m metric_semantic_predicate.scripts.update_bnn_predicate_model_with_human \
+  --config metric_semantic_predicate/configs/predicate_bnn.yaml \
+  --task predicate
+
+
+
