@@ -21,7 +21,7 @@ MSP supports query processing, model refinement with human feedback, and experim
 ## Installation
 
 ```bash
-git clone <your-repo-url>
+git clone https://github.com/TechTinkerPradhan/metric_semantic_predicate.git
 cd final_msp
 pip install -r requirements.txt
 ```

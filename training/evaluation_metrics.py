@@ -9,7 +9,7 @@ def evaluate_with_distributions(Y_true, mean_before, mean_after, label_prefix="B
     Evaluate model predictions using Wasserstein distance and plot distribution comparisons.
 
     Parameters:
-    - Y_true: Ground truth values (Tensor or np.ndarray)
+    - Y_true: Ground truth values (Tensor or np.ndarray) 
     - mean_before: Predicted means before update
     - mean_after: Predicted means after update
     - label_prefix: Prefix for labeling plots
